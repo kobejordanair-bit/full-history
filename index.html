@@ -716,7 +716,7 @@
             {type:"minister", name:"張良", rank:"S", title:"留侯", tag:"運籌帷幄", desc:"決勝千里之外，功成身退的智慧。", poem:"運籌帷幄決勝千，功成身退赤松遊。"},
             {type:"minister", name:"李斯", rank:"S", title:"丞相", tag:"郡縣制", desc:"書同文，行郡縣，能力S+，但沙丘之謀道德扣分。", poem:"倉鼠哲學嘆無常，沙丘之謀誤秦疆。"},
             {type:"minister", name:"于謙(名臣)", rank:"S-", title:"忠肅公", tag:"再造大明", desc:"北京保衛戰力挽狂瀾，粉身碎骨全不惜。", poem:"粉身碎骨全不惜，要留清白在人間。"},
-            {type:"minister", name:"謝安", rank:"S-", title:"太傅", tag:"東山再起", desc:"淝水之戰的幕後指揮，鎮定自若。", poem:"東山再起定江左，淝水捷報弈棋中。"},
+            {type:"minister", name:"謝安", rank:"S-", title:"太傅", tag:"東林再起", desc:"淝水之戰的幕後指揮，鎮定自若。", poem:"東山再起定江左，淝水捷報弈棋中。"},
             {type:"minister", name:"范仲淹", rank:"S-", title:"文正公", tag:"先憂後樂", desc:"慶曆新政，開創宋代士大夫風骨。", poem:"先天下之憂而憂，後天下之樂而樂。"},
             {type:"minister", name:"杜如晦", rank:"S-", title:"萊國公", tag:"房謀杜斷", desc:"善於決斷，與房玄齡並稱大唐賢相。", poem:"果敢決斷輔貞觀，房杜同心濟盛世。"},
             {type:"minister", name:"耶律楚材", rank:"S-", title:"中書令", tag:"以儒治國", desc:"說服蒙古人不行屠城，保存華夏元氣。", poem:"五刑不殺活萬人，以儒治國安天下。"},
@@ -1721,7 +1721,7 @@
                 }
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${currentKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${currentKey}`;
             
             const data = { 
                 contents: [{ parts: [{ text: promptText }] }], 
