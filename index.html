@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>歷代帝王將相名臣評鑑 (v14.13 帝王回歸·連線優化版)</title>
+    <title>歷代帝王將相名臣評鑑 (v15.0 深度優化版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -30,7 +30,6 @@
         .rank-A-minus { background: linear-gradient(135deg, #1d4ed8 0%, #60a5fa 100%) !important; color: #fff !important; }
         .rank-B-plus { background: linear-gradient(135deg, #065f46 0%, #10b981 100%) !important; color: #fff !important; }
         .rank-B { background: linear-gradient(135deg, #374151 0%, #6b7280 100%) !important; color: #fff !important; } 
-        /* New B- Style: Stone/Dark Warm Gray */
         .rank-B-minus { background: linear-gradient(135deg, #57534e 0%, #78716c 100%) !important; color: #f5f5f5 !important; border-color: #a8a29e !important; }
         .rank-C-plus { background: linear-gradient(135deg, #92400e 0%, #d97706 100%) !important; color: #fff !important; } 
         .rank-C { background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important; color: #fff !important; } 
@@ -48,6 +47,7 @@
         .selected-blue { border: 2px solid #3b82f6; background-color: #eff6ff; transform: scale(1.02); }
         .selected-host { border: 2px solid #475569; background-color: #f1f5f9; transform: scale(1.02); }
         .selected-soul { border: 2px solid #9333ea; background-color: #f3e8ff; transform: scale(1.02); }
+        .selected-compare { border: 2px solid #0d9488; background-color: #f0fdf4; transform: scale(1.02); }
 
         .new-badge { position: absolute; top: -6px; right: -6px; background-color: #be123c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; font-family: 'Noto Sans TC'; }
         .mod-badge { position: absolute; top: -6px; right: -6px; background-color: #1d4ed8; color: white; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; font-family: 'Noto Sans TC'; }
@@ -87,11 +87,27 @@
         .btn-ink:hover { background-color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transform: translateY(-1px); }
         
         #connectionStatus { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 20px; font-size: 10px; pointer-events: none; z-index: 100; opacity: 0; transition: opacity 0.5s; }
+        
+        /* Compare Bar */
+        #compareBar { box-shadow: 0 -4px 15px rgba(0,0,0,0.1); border-top: 3px solid #0d9488; }
     </style>
 </head>
 <body class="min-h-screen selection:bg-orange-100 selection:text-orange-900">
 
     <div id="connectionStatus"><i class="fa-solid fa-wifi"></i> 連線狀態</div>
+
+    <!-- UI Overlay System (Replaces Alert/Confirm) -->
+    <div id="uiMsgBox" class="fixed inset-0 z-[100] hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onclick="closeUIMsg()"></div>
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 relative z-10 transform transition-all scale-95 opacity-0" id="uiMsgContent">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 font-serif" id="uiMsgTitle">提示</h3>
+            <p class="text-slate-600 mb-6 text-sm" id="uiMsgText"></p>
+            <div class="flex justify-end gap-3" id="uiMsgBtns">
+                <button onclick="closeUIMsg()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded font-bold text-sm transition-colors" id="uiMsgCancelBtn" style="display:none;">取消</button>
+                <button onclick="closeUIMsg()" class="px-4 py-2 bg-[#b45309] hover:bg-[#92400e] text-white rounded font-bold text-sm transition-colors" id="uiMsgOkBtn">確定</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Navbar -->
     <header class="bg-[#1c1917] text-[#f5f5f4] shadow-xl sticky top-0 z-50 border-b border-[#44403c]">
@@ -102,13 +118,13 @@
                 </div>
                 <div class="flex flex-col">
                     <h1 class="text-2xl tracking-widest calligraphy text-[#e5e5e5]">帝王將相名臣評鑑</h1>
-                    <span class="text-[10px] text-[#a8a29e] tracking-[0.2em] font-serif uppercase">v14.13 帝王回歸·連線優化版</span>
+                    <span class="text-[10px] text-[#a8a29e] tracking-[0.2em] font-serif uppercase" id="appVersionText">v15.0 深度優化版</span>
                 </div>
             </div>
             <div class="flex gap-3 items-center">
                 <div class="flex bg-[#2c2826] rounded-lg p-1 gap-1 border border-[#44403c]">
-                    <button onclick="saveDataFile()" class="text-[#d6d3c9] hover:text-white hover:bg-[#44403c] px-3 py-1.5 rounded transition-all text-sm font-serif">
-                        <i class="fa-solid fa-floppy-disk text-[#f97316]"></i> <span class="hidden md:inline">存檔</span>
+                    <button onclick="handleDownloadJSON()" class="text-[#d6d3c9] hover:text-white hover:bg-[#44403c] px-3 py-1.5 rounded transition-all text-sm font-serif">
+                        <i class="fa-solid fa-floppy-disk text-[#f97316]"></i> <span class="hidden md:inline">匯出</span>
                     </button>
                     <button onclick="document.getElementById('fileInput').click()" class="text-[#d6d3c9] hover:text-white hover:bg-[#44403c] px-3 py-1.5 rounded transition-all text-sm font-serif">
                         <i class="fa-solid fa-folder-open text-[#14b8a6]"></i> <span class="hidden md:inline">讀檔</span>
@@ -136,17 +152,20 @@
                 
                 <!-- 模式切換 -->
                 <div class="flex gap-2">
-                    <button onclick="toggleMode('warRoom')" class="bg-[#2c2826] hover:bg-[#0f172a] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2">
+                    <button onclick="toggleMode('warRoom')" class="bg-[#2c2826] hover:bg-[#0f172a] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2" id="btn-mode-warRoom">
                         <i class="fa-solid fa-chess-board text-indigo-400"></i> <span class="hidden md:inline">戰情</span>
                     </button>
-                    <button onclick="toggleMode('courtMode')" class="bg-[#2c2826] hover:bg-[#064e3b] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2">
+                    <button onclick="toggleMode('courtMode')" class="bg-[#2c2826] hover:bg-[#064e3b] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2" id="btn-mode-courtMode">
                         <i class="fa-solid fa-landmark text-emerald-400"></i> <span class="hidden md:inline">朝堂</span>
                     </button>
-                    <button onclick="toggleMode('soulMode')" class="bg-[#2c2826] hover:bg-[#2e1065] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2">
+                    <button onclick="toggleMode('soulMode')" class="bg-[#2c2826] hover:bg-[#2e1065] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2" id="btn-mode-soulMode">
                         <i class="fa-solid fa-yin-yang text-purple-400"></i> <span class="hidden md:inline">魂穿</span>
                     </button>
-                    <button onclick="toggleMode('scenarioMode')" class="bg-[#2c2826] hover:bg-[#450a0a] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2">
+                    <button onclick="toggleMode('scenarioMode')" class="bg-[#2c2826] hover:bg-[#450a0a] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2" id="btn-mode-scenarioMode">
                         <i class="fa-solid fa-fire-flame-curved text-red-500"></i> <span class="hidden md:inline">絕境</span>
+                    </button>
+                    <button onclick="toggleMode('compareMode')" class="bg-[#2c2826] hover:bg-[#0f766e] text-white border border-[#44403c] px-3 py-2 rounded-lg text-sm font-serif tracking-wide transition-all shadow-lg flex items-center gap-2" id="btn-mode-compareMode">
+                        <i class="fa-solid fa-code-compare text-teal-400"></i> <span class="hidden md:inline">比對</span>
                     </button>
                 </div>
             </div>
@@ -163,15 +182,40 @@
 
             <div class="flex flex-col md:flex-row gap-6 items-center justify-between relative z-10">
                 <!-- 類型切換 -->
-                <div class="flex gap-6 text-lg font-serif tracking-widest text-[#57534e]">
+                <div class="flex gap-4 text-lg font-serif tracking-widest text-[#57534e]">
                     <button onclick="setTypeFilter('all')" class="type-btn active" id="btn-type-all">全覽</button>
                     <button onclick="setTypeFilter('emperor')" class="type-btn" id="btn-type-emperor"><i class="fa-solid fa-dragon text-[#b45309] mr-1"></i>帝王</button>
                     <button onclick="setTypeFilter('general')" class="type-btn" id="btn-type-general"><i class="fa-solid fa-horse-head text-[#1e3a8a] mr-1"></i>名將</button>
                     <button onclick="setTypeFilter('minister')" class="type-btn" id="btn-type-minister"><i class="fa-solid fa-scroll text-[#047857] mr-1"></i>名臣</button>
                 </div>
+                
+                <!-- 朝代篩選 -->
+                <div class="relative">
+                    <select id="dynastyFilter" onchange="setDynastyFilter(this.value)" class="pl-3 pr-8 py-2 rounded-lg text-[#2c2826] bg-[#f5f5f4] border border-transparent focus:border-[#d6d3c9] outline-none font-serif transition-all appearance-none cursor-pointer">
+                        <option value="all">所有朝代</option>
+                        <option value="春秋戰國">春秋戰國</option>
+                        <option value="秦朝">秦朝</option>
+                        <option value="漢朝">漢朝</option>
+                        <option value="三國">三國</option>
+                        <option value="晉朝">晉朝</option>
+                        <option value="南北朝">南北朝</option>
+                        <option value="隋朝">隋朝</option>
+                        <option value="唐朝">唐朝</option>
+                        <option value="五代十國">五代十國</option>
+                        <option value="宋朝">宋朝</option>
+                        <option value="元朝">元朝</option>
+                        <option value="明朝">明朝</option>
+                        <option value="清朝">清朝</option>
+                        <option value="民國與現代">民國與現代</option>
+                        <option value="未分類">未分類 / 其他</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#a8a29e]">
+                        <i class="fa-solid fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
 
                 <!-- 搜尋 -->
-                <div class="relative w-full md:w-80 group">
+                <div class="relative w-full md:w-64 lg:w-80 group">
                     <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#a8a29e]"><i class="fa-solid fa-magnifying-glass"></i></span>
                     <input type="text" id="searchInput" placeholder="尋訪帝王將相名臣..." class="w-full pl-10 pr-4 py-2 rounded-lg text-[#2c2826] bg-[#f5f5f4] focus:bg-white border border-transparent focus:border-[#d6d3c9] outline-none font-serif transition-all">
                 </div>
@@ -188,8 +232,8 @@
             </div>
 
             <!-- 分級篩選 -->
-            <div class="mt-6 flex flex-wrap gap-2 items-center justify-center md:justify-start select-none border-t border-[#f0ebe0] pt-4">
-                <button class="filter-btn active px-4 py-1.5 rounded shadow-sm text-sm" data-rank="all">全部</button>
+            <div class="mt-6 flex flex-wrap gap-2 items-center justify-center md:justify-start select-none border-t border-[#f0ebe0] pt-4" id="rankFilters">
+                <button class="filter-btn active px-4 py-1.5 rounded shadow-sm text-sm bg-[#2c2826] text-[#f5f5f4] shadow-inner" data-rank="all">全部</button>
                 <div class="h-6 w-px bg-[#e5e0d3] mx-2"></div>
                 <button class="filter-btn px-3 py-1 rounded text-xs text-[#b91c1c]" data-rank="S+">S+ 巔峰</button>
                 <button class="filter-btn px-3 py-1 rounded text-xs text-[#991b1b]" data-rank="S">S 卓越</button>
@@ -212,6 +256,27 @@
 
         <!-- 畫廊 (Grid) -->
         <div id="gridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-32"></div>
+    </div>
+
+    <!-- 人物對比列 (Compare Bar) -->
+    <div id="compareBar" class="fixed bottom-0 left-0 right-0 bg-white z-40 transform translate-y-full flex h-20 items-center px-6 justify-between transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-xl shadow-sm border border-teal-100"><i class="fa-solid fa-code-compare"></i></div>
+            <div>
+                <h3 class="font-bold text-slate-800 font-serif tracking-widest">雙雄對決</h3>
+                <p class="text-xs text-slate-500" id="compareStatusText">請選擇兩位人物 (0/2)</p>
+            </div>
+        </div>
+        <div class="flex gap-4 flex-1 justify-center" id="compareSlots">
+            <div class="px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-400 w-40 text-center font-bold" id="compareSlot1">虛位</div>
+            <div class="text-slate-300 font-black italic text-xl mt-1">VS</div>
+            <div class="px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-400 w-40 text-center font-bold" id="compareSlot2">虛位</div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="clearCompare()" class="text-slate-400 hover:text-slate-600 transition-colors"><i class="fa-solid fa-rotate-left"></i></button>
+            <button onclick="startCompare()" id="startCompareBtn" disabled class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg font-bold font-serif shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all">推演對比</button>
+            <button onclick="toggleMode('browse')" class="text-red-400 hover:text-red-600 transition-colors ml-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
     </div>
 
     <!-- 戰情室面板 (War Room) -->
@@ -247,7 +312,7 @@
         <div class="bg-[#064e3b] text-[#ecfdf5] px-6 py-3 flex justify-between items-center shrink-0 h-14 cursor-pointer shadow-md" onclick="togglePanelSize('courtMode')">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-landmark text-[#34d399] text-xl"></i>
-                <div><h3 class="font-bold text-base tracking-widest font-serif">盛世朝堂 (唐制)</h3></div>
+                <div><h3 class="font-bold text-base tracking-widest font-serif">盛世朝堂 (治國)</h3></div>
             </div>
             <div id="courtModeStatus" class="hidden flex-1 text-center px-4">
                 <span class="text-sm text-[#34d399] font-serif animate-pulse">任命：<span class="selecting-role-text font-bold">...</span></span>
@@ -338,6 +403,8 @@
                     <i class="fa-solid fa-scroll text-[#d4af37]"></i> <span>系統推演</span>
                 </h3>
                 <div class="flex gap-3 items-center">
+                    <!-- RegExp button for Radar regeneration -->
+                    <button id="regenStatsBtn" onclick="forceRegenerateStats()" class="hidden text-xs bg-[#d4af37] hover:bg-[#b45309] text-white px-3 py-1.5 rounded transition-colors shadow-sm font-serif tracking-wider" title="重新呼叫 AI 計算數值"><i class="fa-solid fa-rotate-right"></i> 重算五維</button>
                     <button id="clearMemoryBtn" onclick="clearCurrentMemory()" class="hidden text-xs bg-[#7f1d1d] hover:bg-red-700 text-white px-3 py-1.5 rounded transition-colors shadow-sm font-serif tracking-wider">忘卻</button>
                     <button onclick="closeModal()" class="text-[#a8a29e] hover:text-white px-2 transition-colors"><i class="fa-solid fa-xmark text-2xl"></i></button>
                 </div>
@@ -388,7 +455,17 @@
                                 <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">評級</label>
                                 <select id="editRank" class="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:border-blue-500 outline-none"><option value="S+">S+</option><option value="S">S</option><option value="S-">S-</option><option value="A+">A+</option><option value="A">A</option><option value="A-">A-</option><option value="B+">B+</option><option value="B">B</option><option value="B-">B-</option><option value="C+">C+</option><option value="C">C</option><option value="C-">C-</option><option value="D">D</option></select>
                             </div>
-                            <div class="col-span-3">
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">朝代</label>
+                                <select id="editDynasty" class="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:border-blue-500 outline-none">
+                                    <option value="春秋戰國">春秋戰國</option><option value="秦朝">秦朝</option><option value="漢朝">漢朝</option>
+                                    <option value="三國">三國</option><option value="晉朝">晉朝</option><option value="南北朝">南北朝</option>
+                                    <option value="隋朝">隋朝</option><option value="唐朝">唐朝</option><option value="五代十國">五代十國</option>
+                                    <option value="宋朝">宋朝</option><option value="元朝">元朝</option><option value="明朝">明朝</option>
+                                    <option value="清朝">清朝</option><option value="民國與現代">民國與現代</option><option value="未分類">未分類</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
                                 <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">稱號</label>
                                 <input id="editTitle" class="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:border-blue-500 outline-none font-serif">
                             </div>
@@ -479,16 +556,99 @@
     </div>
     
     <script>
-        // --- UTILS (Hoisted for safety) ---
+        // --- CONSTANTS & UTILS ---
+        const APP_VERSION = "15.0";
         function el(id) { return document.getElementById(id); }
         function safeJSONParse(str, fallback) {
             try { return JSON.parse(str) || fallback; } 
-            catch (e) { console.warn("JSON Parse Error, resetting data.", e); return fallback; }
+            catch (e) { console.warn("JSON Parse Error", e); return fallback; }
+        }
+
+        // Custom UI Alert/Confirm (Replaces native blocking dialogs)
+        function customAlert(msg) {
+            el('uiMsgTitle').innerText = '提示';
+            el('uiMsgText').innerText = msg;
+            el('uiMsgCancelBtn').style.display = 'none';
+            el('uiMsgOkBtn').onclick = closeUIMsg;
+            openUIMsg();
+        }
+        function customConfirm(msg, onConfirm) {
+            el('uiMsgTitle').innerText = '確認';
+            el('uiMsgText').innerText = msg;
+            el('uiMsgCancelBtn').style.display = 'inline-block';
+            el('uiMsgOkBtn').onclick = () => { closeUIMsg(); onConfirm(); };
+            openUIMsg();
+        }
+        function openUIMsg() {
+            el('uiMsgBox').classList.remove('hidden');
+            el('uiMsgBox').classList.add('flex');
+            setTimeout(() => {
+                el('uiMsgContent').classList.remove('scale-95', 'opacity-0');
+                el('uiMsgContent').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        function closeUIMsg() {
+            el('uiMsgContent').classList.remove('scale-100', 'opacity-100');
+            el('uiMsgContent').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                el('uiMsgBox').classList.add('hidden');
+                el('uiMsgBox').classList.remove('flex');
+            }, 150);
         }
 
         const apiKey = "";
         let radarChartInstance = null;
+        let searchTimer = null; // For debounce
         
+        // --- ID & DYNASTY GENERATION ---
+        function generateId(type, name) { return `${type}_${name}`; }
+        
+        function guessDynasty(l) {
+            if (l.dynasty && l.dynasty !== '其他') return l.dynasty; 
+            
+            const exactMap = {
+                "春秋戰國": ["管仲","商鞅","白起","吳起","王翦","廉頗","李牧","孫武","孫臏","田單","伍子胥","齊桓公","晉文公","楚莊王","趙武靈王","燕昭王","楚威王","秦孝公","秦昭襄王","張儀","范雎","晏嬰","子產","李悝","呂不韋","隰朋","王賁","李信"],
+                "秦朝": ["秦始皇","秦二世","李斯","趙高","章邯","蒙恬","項羽"], 
+                "漢朝": ["漢武帝","漢光武帝","漢高祖","漢文帝","漢宣帝","漢明帝","漢景帝","漢元帝","漢安帝","漢桓帝","漢獻帝","漢靈帝","呂后","劉邦","韓信","蕭何","張良","陳平","霍去病","衛青","周亞夫","馬援","班超","霍光","周昌","陸賈","董卓","皇甫嵩","馮異"],
+                "三國": ["魏武帝","昭烈帝","吳大帝","魏文帝","諸葛亮","司馬懿","曹操","周瑜","陸遜","鄧艾","呂蒙","關羽","張遼","孫策","魏延","姜維","趙雲","陸抗","張郃","馬超","馬謖","諸葛亮(名臣)","荀彧","陳群","魯肅","陸遜(名臣)"],
+                "晉朝": ["晉懷帝","晉惠帝","杜預","桓溫","謝安","王導","王衍","殷浩"],
+                "南北朝": ["北魏孝文帝","宋武帝","北周文帝","神武帝","梁武帝","劉裕","宇文泰","拓跋燾","高歡","爾朱榮","拓跋珪","陳慶之","王僧辯","劉穆之"],
+                "隋朝": ["隋文帝","隋煬帝","楊素","韓擒虎","高熲","楊素(名臣)"],
+                "唐朝": ["唐太宗","武則天","唐高祖","唐高宗","唐憲宗","唐玄宗","唐肅宗","唐穆宗","唐中宗","李世民","李靖","李勣","蘇定方","郭子儀","王忠嗣","李光弼","僕固懷恩","裴行儉","張巡","李克用","封常清","哥舒翰","王毛仲","秦叔寶","程知節","張仁愿","房玄齡","魏徵","杜如晦","狄仁傑","長孫無忌","姚崇","宋璟","李林甫","楊國忠"],
+                "五代十國": ["兒皇帝","韓熙載"],
+                "宋朝": ["宋太祖","宋仁宗","宋太宗","宋孝宗","宋真宗","宋高宗","宋欽宗","岳飛","孟珙","韓世忠","劉錡","种師道","狄青","虞允文","王安石","范仲淹","寇準","司馬光","包拯","呂蒙正","秦檜","賈似道","蔡京"],
+                "元朝": ["元世祖","元文宗","元順帝","成吉思汗","速不台","伯顏","木華黎","王保保","忽必烈","哲別","耶律楚材","阿合馬","脫脫","賈魯"],
+                "明朝": ["明太祖","明成祖","明孝宗","明世宗","明英宗","崇禎帝","徐達","朱棣","于謙","常遇春","李定國","藍玉","傅友德","袁崇煥","俞大猷","孫傳庭","盧象昇","李如松","毛文龍","李成梁","左良玉","史可法","李自成","張獻忠","王守仁","張居正","于謙(名臣)","劉基","徐光啟","徐階","楊廷和","孫承宗","李賢","徐溥","高拱","海瑞","方孝孺","沈一貫","楊嗣昌","嚴嵩","溫體仁","陳演","魏藻德","魏忠賢"],
+                "清朝": ["康熙帝","乾隆帝","雍正帝","嘉慶帝","慈禧太后","同治帝","道光帝","光緒帝","努爾哈赤","多爾袞","左宗棠","施琅","李鴻章","曾國荃","吳三桂","洪承疇","年羹堯","石達開","楊秀清","鄧世昌","陳化成","曾國藩","李鴻章(名臣)","左宗棠(名臣)","張廷玉","張之洞","范文程","和珅"],
+                "民國與現代": ["毛澤東","孫文","蔣介石","洪憲帝","林彪","粟裕","彭德懷","朱德","白崇禧","孫立人","薛岳","李宗仁","張靈甫","蔣中正","劉湘","蔡鍔","馮玉祥","黃百韜","唐生智","鄧小平","周恩來","朱鎔基","陳雲","胡耀邦","宋子文","李宗仁(名臣)","李鵬","孫科"]
+            };
+
+            for (const [dynasty, names] of Object.entries(exactMap)) {
+                if (names.includes(l.name)) return dynasty;
+            }
+
+            // 嚴格模式推斷 (移除容易造成誤判的單字，只抓具體政權與大事件)
+            const str = (l.title || '') + (l.desc || '') + (l.tag || '') + (l.poem || '');
+            
+            if (/民國|抗戰|北洋政府|紅軍|中共|十大建設|半導體|台灣奇蹟/.test(str)) return "民國與現代";
+            if (/大清|清朝|八旗|洋務運動|太平天國|湘軍|總理衙門/.test(str)) return "清朝";
+            if (/大明|明朝|晚明|東林黨|閹黨|靖難之役|土木堡|東廠|錦衣衛/.test(str)) return "明朝";
+            if (/大元|元朝|蒙古帝國|怯薛軍|四大汗國/.test(str)) return "元朝";
+            if (/北宋|南宋|大宋|靖康之恥|熙寧變法|端平入洛|理學/.test(str)) return "宋朝";
+            if (/五代十國|後梁|後唐|後晉|後漢|後周/.test(str)) return "五代十國";
+            if (/大唐|唐朝|初唐|盛唐|中唐|晚唐|安史之亂|貞觀|開元|天寶|玄武門/.test(str)) return "唐朝";
+            if (/大隋|隋朝|開皇|大業|瓦崗/.test(str)) return "隋朝";
+            if (/南北朝|北魏|東魏|西魏|北齊|北周|劉宋|南齊|南梁|南陳|侯景之亂|關隴集團/.test(str)) return "南北朝";
+            if (/西晉|東晉|八王之亂|五胡亂華|永嘉之亂/.test(str)) return "晉朝";
+            if (/三國|東漢末|曹魏|蜀漢|東吳|黃巾之亂|三分天下/.test(str)) return "三國";
+            if (/西漢|東漢|大漢|漢朝|楚漢相爭|文景之治|昭宣中興|王莽|新朝/.test(str)) return "漢朝";
+            if (/秦朝|大秦|秦末/.test(str)) return "秦朝";
+            if (/春秋|戰國|齊國|楚國|燕國|韓國|趙國|魏國|秦國/.test(str)) return "春秋戰國";
+            
+            // 如果連明確的強關聯詞都沒有，一律歸入未分類，讓使用者手動改
+            return "未分類";
+        }
+
         // --- FULL DATABASE (296 Entries) ---
         const staticLegendsData = [
             // === EMPERORS (74) ===
@@ -794,6 +954,18 @@
             {type:"minister", name:"董卓", rank:"C-", title:"太師", tag:"殘暴不仁", desc:"燒洛陽，亂漢室，引發天下大亂。", poem:"焚燒宮室遷西都，殘暴不仁天下誅。"}
         ];
         
+        // --- DATA INITIALIZATION & CLEANUP ---
+        // 1. Ensure all static data has ID & Dynasty. Clean up text.
+        staticLegendsData.forEach(l => {
+            l.id = generateId(l.type, l.name);
+            l.dynasty = guessDynasty(l);
+            // Clean up description (trailing \n, duplicate poem, double periods)
+            l.desc = l.desc.replace(/\\n/g, '').replace(/。。/g, '。').trim();
+            if (l.poem && l.desc.endsWith(l.poem)) {
+                l.desc = l.desc.substring(0, l.desc.length - l.poem.length).trim();
+            }
+        });
+
         // --- CONFIG ---
         const FACTION_COLORS = [
             { id: 'red', name: '紅軍', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', icon: 'text-red-600' },
@@ -810,7 +982,9 @@
         const appState = {
             mode: 'browse',
             typeFilter: 'all',
+            dynastyFilter: 'all',
             rankFilter: 'all',
+            compareList: [], // Store IDs for comparison
             warRoom: { 
                 minimized: false, 
                 activeSlot: null, 
@@ -827,25 +1001,57 @@
                 ]
             },
             soulMode: { minimized: false, activeSlot: null, activeScenario: null, selection: { host: null, soul: null } },
-            chatMode: { target: null, history: [] },
-            chatHistories: safeJSONParse(localStorage.getItem('legendChatHistories_v13_9'), {}),
-            customLegends: safeJSONParse(localStorage.getItem('customLegends_v13_9'), []),
-            modifiedLegends: safeJSONParse(localStorage.getItem('modifiedLegends_v13_9'), {})
+            chatMode: { targetId: null, history: [] },
+            chatHistories: safeJSONParse(localStorage.getItem('legendChatHistories_v15_0'), {}),
+            customLegends: safeJSONParse(localStorage.getItem('customLegends_v15_0'), []),
+            modifiedLegends: safeJSONParse(localStorage.getItem('modifiedLegends_v15_0'), {})
         };
         
-        let legendsData = staticLegendsData; 
+        let legendsData = []; 
         const rankOrder = { "S+": 1, "S": 2, "S-": 3, "A+": 4, "A": 5, "A-": 6, "B+": 7, "B": 8, "B-": 8.5, "C+": 9, "C": 10, "C-": 11, "D": 12 };
 
         function init() {
+            migrateOldData();
             refreshData();
             initScenarios();
             updateWarRoomUI();
             updateCourtModeUI();
         }
 
+        // Migrate from 13.9 name-based keys to 15.0 id-based keys if needed
+        function migrateOldData() {
+            const oldMods = safeJSONParse(localStorage.getItem('modifiedLegends_v13_9'), null);
+            if (oldMods && Object.keys(appState.modifiedLegends).length === 0) {
+                Object.keys(oldMods).forEach(oldName => {
+                    const found = staticLegendsData.find(l => l.name === oldName);
+                    if(found) { appState.modifiedLegends[found.id] = oldMods[oldName]; }
+                });
+                saveToLocalStorage();
+            }
+            const oldChats = safeJSONParse(localStorage.getItem('legendChatHistories_v13_9'), null);
+            if (oldChats && Object.keys(appState.chatHistories).length === 0) {
+                Object.keys(oldChats).forEach(oldName => {
+                    const found = staticLegendsData.find(l => l.name === oldName);
+                    if(found) { appState.chatHistories[found.id] = oldChats[oldName]; }
+                });
+                saveToLocalStorage();
+            }
+            // Ensure customs have ID & Dynasty
+            appState.customLegends.forEach(l => {
+                if(!l.id) l.id = generateId(l.type, l.name);
+                if(!l.dynasty) l.dynasty = guessDynasty(l);
+            });
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('customLegends_v15_0', JSON.stringify(appState.customLegends));
+            localStorage.setItem('modifiedLegends_v15_0', JSON.stringify(appState.modifiedLegends));
+            localStorage.setItem('legendChatHistories_v15_0', JSON.stringify(appState.chatHistories));
+        }
+
         function refreshData() {
             legendsData = [...staticLegendsData, ...appState.customLegends];
-            legendsData = legendsData.map(g => appState.modifiedLegends[g.name] ? { ...g, ...appState.modifiedLegends[g.name], isModified: true } : g);
+            legendsData = legendsData.map(g => appState.modifiedLegends[g.id] ? { ...g, ...appState.modifiedLegends[g.id], isModified: true } : g);
             renderLegends();
         }
 
@@ -855,20 +1061,30 @@
             el(`btn-type-${type}`).classList.add('active');
             renderLegends();
         }
+        
+        function setDynastyFilter(dynasty) {
+            appState.dynastyFilter = dynasty;
+            renderLegends();
+        }
 
+        // Optimized Render with textContent for safety
         function renderLegends() {
             const container = el('gridContainer');
             container.innerHTML = '';
             
+            const searchQuery = el('searchInput').value.trim();
             const filtered = legendsData.filter(g => {
                 const matchType = appState.typeFilter === 'all' || g.type === appState.typeFilter;
                 const matchRank = appState.rankFilter === 'all' || g.rank === appState.rankFilter;
-                const searchQuery = el('searchInput').value.trim();
+                const matchDynasty = appState.dynastyFilter === 'all' || g.dynasty === appState.dynastyFilter;
                 const matchSearch = g.name.includes(searchQuery) || g.title.includes(searchQuery) || g.tag.includes(searchQuery);
-                return matchType && matchRank && matchSearch;
+                return matchType && matchRank && matchDynasty && matchSearch;
             }).sort((a, b) => rankOrder[a.rank] - rankOrder[b.rank]);
 
             el('countDisplay').innerText = filtered.length;
+
+            // Use DocumentFragment for performance
+            const fragment = document.createDocumentFragment();
 
             filtered.forEach(g => {
                 let rankClass = `rank-${g.rank.replace('+','-plus').replace('-','-minus')}`;
@@ -879,38 +1095,49 @@
                 else { typeIcon='<i class="fa-solid fa-scroll text-[#047857]"></i>'; typeClass='type-minister'; }
                 
                 let selectionClass = '';
-                appState.warRoom.factions.forEach(f => { Object.values(f.slots).forEach(n => { if(n === g.name) selectionClass = 'selected-red'; }); });
-                appState.courtMode.factions.forEach(f => { Object.values(f.slots).forEach(n => { if(n === g.name) selectionClass = 'selected-blue'; }); });
-                if(appState.soulMode.selection.host === g.name) selectionClass = 'selected-host';
-                if(appState.soulMode.selection.soul === g.name) selectionClass = 'selected-soul';
+                appState.warRoom.factions.forEach(f => { Object.values(f.slots).forEach(id => { if(id === g.id) selectionClass = 'selected-red'; }); });
+                appState.courtMode.factions.forEach(f => { Object.values(f.slots).forEach(id => { if(id === g.id) selectionClass = 'selected-blue'; }); });
+                if(appState.soulMode.selection.host === g.id) selectionClass = 'selected-host';
+                if(appState.soulMode.selection.soul === g.id) selectionClass = 'selected-soul';
+                if(appState.compareList.includes(g.id)) selectionClass = 'selected-compare';
 
                 const isMod = g.isModified ? '<span class="mod-badge">修</span>' : '';
-                const isNew = appState.customLegends.some(cg => cg.name === g.name) ? '<span class="new-badge">新</span>' : '';
+                const isNew = appState.customLegends.some(cg => cg.id === g.id) ? '<span class="new-badge">新</span>' : '';
 
-                const card = `
-                <div class="paper-card rounded-xl p-5 relative flex flex-col h-full cursor-pointer ${selectionClass} ${typeClass} ${g.rank==='S+'?'card-s-plus':''}" onclick="handleCardClick('${g.name}')">
+                const cardHtml = `
+                <div class="paper-card rounded-xl p-5 relative flex flex-col h-full cursor-pointer ${selectionClass} ${typeClass} ${g.rank==='S+'?'card-s-plus':''}" onclick="handleCardClick('${g.id}')">
                     ${isMod || isNew}
                     <div class="flex justify-between items-start mb-3 relative z-10">
                         <div class="flex-1">
-                            <h3 class="text-xl font-bold text-[#2c2826] tracking-tight flex items-center gap-2">${typeIcon} ${g.name}</h3>
-                            <p class="text-xs text-[#78716c] font-serif font-medium mt-1">${g.title}</p>
+                            <h3 class="text-xl font-bold text-[#2c2826] tracking-tight flex items-center gap-2">${typeIcon} ${escapeHtml(g.name)}</h3>
+                            <p class="text-xs text-[#78716c] font-serif font-medium mt-1">${escapeHtml(g.title)}</p>
                         </div>
                         <span class="rank-badge ${rankClass} shadow-sm shrink-0 ml-2">${g.rank}</span>
                     </div>
-                    <div class="mb-3 relative z-10"><span class="inline-flex items-center gap-1 bg-[#f5f5f4] text-[#57534e] text-[10px] font-bold px-2 py-0.5 rounded border border-[#e5e0d3]"><i class="fa-solid fa-tag text-[#d4af37] text-[9px]"></i>${g.tag}</span></div>
-                    <div class="relative py-2 my-2 bg-[#f9f7f1] rounded px-3 border-l-2 border-[#d4af37] shadow-sm z-10"><p class="text-lg text-[#44403c] italic poem-font leading-relaxed tracking-wide text-center">"${g.poem}"</p></div>
-                    <p class="text-xs text-[#57534e] leading-relaxed pt-3 border-t border-[#e5e0d3] mb-4 flex-grow font-serif z-10">${g.desc}</p>
+                    <div class="flex gap-2 mb-3 relative z-10">
+                        <span class="inline-flex items-center gap-1 bg-[#f5f5f4] text-[#57534e] text-[10px] font-bold px-2 py-0.5 rounded border border-[#e5e0d3]"><i class="fa-solid fa-tag text-[#d4af37] text-[9px]"></i>${escapeHtml(g.tag)}</span>
+                        <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200"><i class="fa-solid fa-hourglass-half text-slate-400 text-[9px]"></i>${escapeHtml(g.dynasty)}</span>
+                    </div>
+                    <div class="relative py-2 my-2 bg-[#f9f7f1] rounded px-3 border-l-2 border-[#d4af37] shadow-sm z-10"><p class="text-lg text-[#44403c] italic poem-font leading-relaxed tracking-wide text-center">"${escapeHtml(g.poem)}"</p></div>
+                    <p class="text-xs text-[#57534e] leading-relaxed pt-3 border-t border-[#e5e0d3] mb-4 flex-grow font-serif z-10">${escapeHtml(g.desc)}</p>
                     <div class="flex gap-2 mt-auto pt-1 relative z-10" onclick="event.stopPropagation()">
-                        <button onclick="startChat('${g.name}')" class="flex-1 bg-white hover:bg-[#f5f5f4] text-[#57534e] text-xs font-serif font-bold py-2 rounded border border-[#e5e0d3] transition-colors"><i class="fa-solid fa-comment-dots text-[#a8a29e] mr-1"></i>對話</button>
-                        <button onclick="showAIAnalysis('${g.name}')" class="flex-1 btn-ink text-xs font-bold py-2 rounded transition-colors group"><i class="fa-solid fa-scroll text-[#d4af37] mr-1"></i>評鑑</button>
+                        <button onclick="startChat('${g.id}')" class="flex-1 bg-white hover:bg-[#f5f5f4] text-[#57534e] text-xs font-serif font-bold py-2 rounded border border-[#e5e0d3] transition-colors"><i class="fa-solid fa-comment-dots text-[#a8a29e] mr-1"></i>對話</button>
+                        <button onclick="showAIAnalysis('${g.id}')" class="flex-1 btn-ink text-xs font-bold py-2 rounded transition-colors group"><i class="fa-solid fa-scroll text-[#d4af37] mr-1"></i>評鑑</button>
+                        <button onclick="toggleCompare('${g.id}')" class="w-10 bg-teal-50 hover:bg-teal-100 text-teal-600 text-xs font-bold rounded border border-teal-200 transition-colors" title="加入比對"><i class="fa-solid fa-code-compare"></i></button>
                     </div>
                 </div>`;
-                container.innerHTML += card;
+                
+                const div = document.createElement('div');
+                div.innerHTML = cardHtml.trim();
+                fragment.appendChild(div.firstChild);
             });
+            container.appendChild(fragment);
         }
 
-        // --- MISSING FUNCTIONS IMPL ---
-        
+        function escapeHtml(unsafe) {
+            return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
         // Modal & AI Logic
         function openModal(title, type = 'content') {
             el('aiModal').classList.remove('hidden');
@@ -919,17 +1146,19 @@
                 el('chatContainer').classList.remove('hidden');
                 el('contentContainer').classList.add('hidden');
                 el('clearMemoryBtn').classList.remove('hidden');
+                el('regenStatsBtn').classList.add('hidden');
             } else {
                 el('chatContainer').classList.add('hidden');
                 el('contentContainer').classList.remove('hidden');
                 el('clearMemoryBtn').classList.add('hidden');
                 el('modalContent').innerHTML = ''; // Clear previous content
+                el('regenStatsBtn').classList.add('hidden');
             }
         }
 
         function closeModal() {
             el('aiModal').classList.add('hidden');
-            appState.chatMode.target = null;
+            appState.chatMode.targetId = null;
         }
 
         function setModalContent(html) {
@@ -938,34 +1167,37 @@
         }
 
         function clearCurrentMemory() {
-            if (appState.chatMode.target) {
-                if(confirm("確定要清除與此人物的對話記憶嗎？")) {
-                    delete appState.chatHistories[appState.chatMode.target];
+            if (appState.chatMode.targetId) {
+                customConfirm("確定要清除與此人物的對話記憶嗎？", () => {
+                    delete appState.chatHistories[appState.chatMode.targetId];
                     el('chatHistory').innerHTML = '<div class="text-center text-xs text-gray-400 py-4">- 記憶已重置 -</div>';
-                    saveDataFile(); // Auto save
-                }
+                    saveToLocalStorage();
+                });
             }
         }
 
-        // AI Analysis Logic
-        async function showAIAnalysis(name) {
-            const legend = legendsData.find(l => l.name === name);
+        // AI Analysis & Stats Caching Logic
+        let currentAnalysisId = null;
+        
+        async function showAIAnalysis(id, forceRegen = false) {
+            const legend = legendsData.find(l => l.id === id);
             if (!legend) return;
 
+            currentAnalysisId = id;
             openModal(`${legend.name} · 歷史評鑑`, 'content');
             el('loadingState').classList.remove('hidden');
             el('loadingState').classList.add('flex');
             el('modalContent').innerHTML = '';
             el('radarChartContainer').classList.add('hidden');
+            el('regenStatsBtn').classList.add('hidden');
 
-            const typeMap = {
-                'emperor': '帝王',
-                'general': '名將',
-                'minister': '名臣'
-            };
-            const roleText = typeMap[legend.type] || '歷史人物';
+            const typeMap = { 'emperor': '帝王', 'general': '名將', 'minister': '名臣' };
+            
+            // Check cache
+            const cachedStats = appState.modifiedLegends[id]?.stats;
+            const needsStats = forceRegen || !cachedStats;
 
-            const prompt = `請以一位極具洞察力、不落俗套的資深歷史學者的角度，深度剖析${legend.name}（${legend.title}）。
+            let prompt = `請以一位極具洞察力、不落俗套的資深歷史學者的角度，深度剖析${legend.name}（${legend.title}）。
 
             【分析準則】：
             1. **拒絕刻板印象**：不局限於史料的白紙黑字以及慣有的刻板印象。
@@ -979,22 +1211,34 @@
             1. **【歷史局勢與定位】**：置身於當時的時空背景，他面對的是什麼局，又在歷史長河中站什麼位置。
             2. **【深度功過剖析】**：具體事例分析，探討其決策背後的深層邏輯與得失。
             3. **【人性與性格側寫】**：還原其作為「人」的真實面貌與心理特質。
-            4. **【五維能力數值】**：請給出 0-100 的數值（統率、武力、智謀、政治、魅力），並簡述理由。
-            5. **【如果生在現代】**：推測他適合什麼職業。
-            
-            請以JSON格式返回最後的五維數值，格式為：{"stats": [統率, 武力, 智謀, 政治, 魅力]}。但JSON放在最後，前面請用Markdown格式撰寫分析文章。`;
+            4. **【如果生在現代】**：推測他適合什麼職業。`;
+
+            if (needsStats) {
+                prompt += `\n\n5. **【五維能力數值】**：請給出 0-100 的數值（統率、武力、智謀、政治、魅力），並簡述理由。\n\n請以JSON格式返回最後的五維數值，格式為：{"stats": [統率, 武力, 智謀, 政治, 魅力]}。但JSON放在最後，前面請用Markdown格式撰寫分析文章。`;
+            } else {
+                // If we already have stats, don't ask AI to generate JSON again.
+                renderRadarChart(legend.name, cachedStats);
+                el('regenStatsBtn').classList.remove('hidden'); // Show button to regenerate
+            }
 
             try {
                 const text = await callGemini(prompt);
                 
-                // Extract JSON for chart
-                const jsonMatch = text.match(/\{"stats":\s*\[.*?\]\}/);
                 let cleanText = text;
-                
-                if (jsonMatch) {
-                    const statsData = JSON.parse(jsonMatch[0]);
-                    renderRadarChart(legend.name, statsData.stats);
-                    cleanText = text.replace(jsonMatch[0], ''); // Remove JSON from text
+                if (needsStats) {
+                    const jsonMatch = text.match(/\{"stats":\s*\[.*?\]\}/);
+                    if (jsonMatch) {
+                        const statsData = JSON.parse(jsonMatch[0]);
+                        // Cache it
+                        appState.modifiedLegends[id] = appState.modifiedLegends[id] || {};
+                        appState.modifiedLegends[id].stats = statsData.stats;
+                        saveToLocalStorage();
+                        refreshData(); // to keep legendsData in sync
+                        
+                        renderRadarChart(legend.name, statsData.stats);
+                        cleanText = text.replace(jsonMatch[0], '');
+                        el('regenStatsBtn').classList.remove('hidden');
+                    }
                 }
                 
                 setModalContent(cleanText);
@@ -1004,26 +1248,45 @@
             }
         }
 
-        function renderRadarChart(label, data) {
+        function forceRegenerateStats() {
+            if(currentAnalysisId) showAIAnalysis(currentAnalysisId, true);
+        }
+
+        function renderRadarChart(label, data, label2 = null, data2 = null) {
             el('radarChartContainer').classList.remove('hidden');
             const ctx = el('radarChart').getContext('2d');
             
             if (radarChartInstance) radarChartInstance.destroy();
             
+            const datasets = [{
+                label: label,
+                data: data,
+                backgroundColor: 'rgba(212, 175, 55, 0.2)',
+                borderColor: 'rgba(212, 175, 55, 1)',
+                pointBackgroundColor: 'rgba(212, 175, 55, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(212, 175, 55, 1)'
+            }];
+
+            if(data2) {
+                datasets.push({
+                    label: label2,
+                    data: data2,
+                    backgroundColor: 'rgba(13, 148, 136, 0.2)', // Teal
+                    borderColor: 'rgba(13, 148, 136, 1)',
+                    pointBackgroundColor: 'rgba(13, 148, 136, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(13, 148, 136, 1)'
+                });
+            }
+            
             radarChartInstance = new Chart(ctx, {
                 type: 'radar',
                 data: {
                     labels: ['統率', '武力', '智謀', '政治', '魅力'],
-                    datasets: [{
-                        label: label,
-                        data: data,
-                        backgroundColor: 'rgba(212, 175, 55, 0.2)',
-                        borderColor: 'rgba(212, 175, 55, 1)',
-                        pointBackgroundColor: 'rgba(212, 175, 55, 1)',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(212, 175, 55, 1)'
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     scales: {
@@ -1037,27 +1300,139 @@
                         }
                     },
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: data2 !== null } // Show legend only if comparing
                     }
                 }
             });
         }
 
-        // Chat Logic
-        function startChat(name) {
-            const legend = legendsData.find(l => l.name === name);
+        // Compare Feature
+        function toggleCompare(id) {
+            const idx = appState.compareList.indexOf(id);
+            if (idx > -1) {
+                appState.compareList.splice(idx, 1);
+            } else {
+                if (appState.compareList.length >= 2) {
+                    appState.compareList.shift(); // Remove oldest
+                }
+                appState.compareList.push(id);
+            }
+            if(appState.mode !== 'compareMode') toggleMode('compareMode');
+            updateCompareUI();
+            renderLegends();
+        }
+
+        function clearCompare() {
+            appState.compareList = [];
+            updateCompareUI();
+            renderLegends();
+        }
+
+        function updateCompareUI() {
+            const count = appState.compareList.length;
+            el('compareStatusText').innerText = `請選擇兩位人物 (${count}/2)`;
+            
+            const slot1 = el('compareSlot1');
+            const slot2 = el('compareSlot2');
+            
+            if (count > 0) {
+                const p1 = legendsData.find(l => l.id === appState.compareList[0]);
+                slot1.innerHTML = p1 ? `<span class="text-teal-700">${p1.name}</span>` : '虛位';
+                slot1.classList.add('border-teal-400', 'bg-teal-50');
+            } else {
+                slot1.innerText = '虛位';
+                slot1.classList.remove('border-teal-400', 'bg-teal-50');
+            }
+
+            if (count > 1) {
+                const p2 = legendsData.find(l => l.id === appState.compareList[1]);
+                slot2.innerHTML = p2 ? `<span class="text-teal-700">${p2.name}</span>` : '虛位';
+                slot2.classList.add('border-teal-400', 'bg-teal-50');
+                el('startCompareBtn').disabled = false;
+            } else {
+                slot2.innerText = '虛位';
+                slot2.classList.remove('border-teal-400', 'bg-teal-50');
+                el('startCompareBtn').disabled = true;
+            }
+        }
+
+        async function startCompare() {
+            if (appState.compareList.length < 2) return;
+            const p1 = legendsData.find(l => l.id === appState.compareList[0]);
+            const p2 = legendsData.find(l => l.id === appState.compareList[1]);
+            
+            openModal(`雙雄對決：${p1.name} vs ${p2.name}`, 'content');
+            el('loadingState').classList.remove('hidden');
+            el('loadingState').classList.add('flex');
+            el('modalContent').innerHTML = '';
+            el('radarChartContainer').classList.add('hidden');
+
+            // Force cache generation if missing
+            let prompt = `請以資深歷史學者的角度，對比分析這兩位歷史人物：${p1.name} 與 ${p2.name}。
+            1. **【同異對比】**：兩人時代背景、性格、成就的異同。
+            2. **【關公戰秦瓊】**：若兩人處於同一時代競爭，推演可能的結果。
+            3. **【綜合評價】**。`;
+
+            // If either misses stats, request them
+            const p1Stats = appState.modifiedLegends[p1.id]?.stats;
+            const p2Stats = appState.modifiedLegends[p2.id]?.stats;
+            const needStats = !p1Stats || !p2Stats;
+
+            if (needStats) {
+                prompt += `\n\n請在最後以JSON格式返回兩人的五維數值（統率,武力,智謀,政治,魅力），格式為：
+                {"stats1": [..], "stats2": [..]}。`;
+            }
+
+            try {
+                const text = await callGemini(prompt);
+                let cleanText = text;
+                
+                let s1 = p1Stats;
+                let s2 = p2Stats;
+
+                if (needStats) {
+                    const jsonMatch = text.match(/\{"stats1":\s*\[.*?\],\s*"stats2":\s*\[.*?\]\}/);
+                    if (jsonMatch) {
+                        const statsData = JSON.parse(jsonMatch[0]);
+                        s1 = statsData.stats1;
+                        s2 = statsData.stats2;
+                        appState.modifiedLegends[p1.id] = appState.modifiedLegends[p1.id] || {};
+                        appState.modifiedLegends[p2.id] = appState.modifiedLegends[p2.id] || {};
+                        appState.modifiedLegends[p1.id].stats = s1;
+                        appState.modifiedLegends[p2.id].stats = s2;
+                        saveToLocalStorage();
+                        cleanText = text.replace(jsonMatch[0], '');
+                    }
+                }
+
+                if(s1 && s2) {
+                    renderRadarChart(p1.name, s1, p2.name, s2);
+                }
+                
+                setModalContent(cleanText);
+            } catch (e) {
+                el('loadingState').classList.add('hidden');
+                el('modalContent').innerHTML = `<div class="text-center py-10 text-red-600"><i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i><br>比對推演失敗<br><span class="text-xs text-gray-500">${e.message}</span></div>`;
+            }
+        }
+
+        // Native Multi-turn Chat Logic
+        function startChat(id) {
+            const legend = legendsData.find(l => l.id === id);
             if (!legend) return;
 
-            appState.chatMode.target = name;
-            openModal(`與 ${name} 對話`, 'chat');
+            appState.chatMode.targetId = id;
+            openModal(`與 ${legend.name} 對話`, 'chat');
             
-            const history = appState.chatHistories[name] || [];
+            const history = appState.chatHistories[id] || [];
             const chatContainer = el('chatHistory');
             chatContainer.innerHTML = '';
             
             if (history.length === 0) {
-                // Initial greeting
-                addChatBubble('ai', `吾乃${legend.title}${legend.name}。後世之人，有何指教？`);
+                const intro = `吾乃${legend.title}${legend.name}。後世之人，有何指教？`;
+                addChatBubble('model', intro);
+                appState.chatHistories[id] = [{role: 'model', content: intro}];
+                saveToLocalStorage();
             } else {
                 history.forEach(msg => addChatBubble(msg.role, msg.content));
             }
@@ -1065,38 +1440,26 @@
 
         function addChatBubble(role, text) {
             const div = document.createElement('div');
+            // Using 'user' for user, 'model' for AI to match Gemini API naming
             div.className = `chat-bubble ${role === 'user' ? 'chat-user' : 'chat-ai'}`;
-            div.innerHTML = marked.parse(text); // Support markdown in chat
+            div.innerHTML = marked.parse(text);
             el('chatHistory').appendChild(div);
             el('chatHistory').scrollTop = el('chatHistory').scrollHeight;
-            
-            // Save to history if it's new
-            if (appState.chatMode.target) {
-                if (!appState.chatHistories[appState.chatMode.target]) {
-                    appState.chatHistories[appState.chatMode.target] = [];
-                }
-                // Avoid duplicating history when reloading
-                const currentHist = appState.chatHistories[appState.chatMode.target];
-                if (currentHist.length === 0 || currentHist[currentHist.length-1].content !== text) {
-                   // This is a simplified check, in reality we push when sending/receiving
-                }
-            }
         }
 
         async function sendChatMessage() {
             const input = el('chatInput');
             const text = input.value.trim();
-            if (!text || !appState.chatMode.target) return;
+            const targetId = appState.chatMode.targetId;
+            if (!text || !targetId) return;
 
-            // 1. Add User Message
             addChatBubble('user', text);
             input.value = '';
             
-            // Save user msg
-            if (!appState.chatHistories[appState.chatMode.target]) appState.chatHistories[appState.chatMode.target] = [];
-            appState.chatHistories[appState.chatMode.target].push({role: 'user', content: text});
+            if (!appState.chatHistories[targetId]) appState.chatHistories[targetId] = [];
+            appState.chatHistories[targetId].push({role: 'user', content: text});
+            saveToLocalStorage();
 
-            // 2. Add Loading Bubble
             const loadingId = 'chat-loading-' + Date.now();
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'chat-bubble chat-ai';
@@ -1105,26 +1468,36 @@
             el('chatHistory').appendChild(loadingDiv);
             el('chatHistory').scrollTop = el('chatHistory').scrollHeight;
 
-            const legend = legendsData.find(l => l.name === appState.chatMode.target);
+            const legend = legendsData.find(l => l.id === targetId);
             const systemPrompt = `你現在是${legend.name}（${legend.title}）。
             生平簡介：${legend.desc}。
-            性格特徵：${legend.poem}。
+            性格標籤：${legend.tag}。
             請完全沉浸在這個歷史人物的角色中，用符合其時代和性格的語氣（可以使用半文半白，但要讓現代人聽得懂）回答使用者的問題。
-            切記：你不知道你死後很久才發生的現代科技（除非你是穿越者），保持歷史沉浸感。`;
+            切記：你不知道你死後很久才發生的現代科技（除非你是穿越者），保持歷史沉浸感。嚴禁使用制式化AI開場白。`;
 
-            // Build context from history (last 10 messages)
-            const recentHistory = appState.chatHistories[appState.chatMode.target].slice(-10);
-            let historyText = recentHistory.map(h => `${h.role === 'user' ? '後世人' : '我'}: ${h.content}`).join('\n');
+            // Build native Gemini contents array
+            const contents = [
+                { role: "user", parts: [{ text: systemPrompt + "\n\n(系統指示：請直接以上述人物身份開始對話)" }] },
+                { role: "model", parts: [{ text: "吾乃" + legend.name + "，已知悉。" }] } // Ack prompt
+            ];
+            
+            const recentHistory = appState.chatHistories[targetId].slice(-20); // Keep last 20 msgs
+            recentHistory.forEach(h => {
+                contents.push({
+                    role: h.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: h.content }]
+                });
+            });
 
             try {
-                const response = await callGemini(systemPrompt + '\n\n對話記錄：\n' + historyText + '\n後世人: ' + text);
+                const response = await callGeminiNative(contents);
                 el(loadingId).remove();
-                addChatBubble('ai', response);
-                appState.chatHistories[appState.chatMode.target].push({role: 'ai', content: response});
-                saveDataFile(); // Optional: Auto-save chat
+                addChatBubble('model', response);
+                appState.chatHistories[targetId].push({role: 'model', content: response});
+                saveToLocalStorage();
             } catch (e) {
-                el(loadingId).remove();
-                addChatBubble('ai', `(咳咳... 跨越時空的連線似乎中斷了: ${e.message})`);
+                if(el(loadingId)) el(loadingId).remove();
+                addChatBubble('model', `(咳咳... 跨越時空的連線似乎中斷了: ${e.message})`);
             }
         }
 
@@ -1132,21 +1505,23 @@
         function openAddModal() { el('addModal').classList.remove('hidden'); el('addStep1').classList.remove('hidden'); el('addStep2').classList.add('hidden'); el('addInputName').value = ''; }
         function closeAddModal() { el('addModal').classList.add('hidden'); }
         
+        let pendingNewLegendType = 'general';
         async function analyzeNewLegend() {
             const name = el('addInputName').value.trim();
             const typeRadio = document.querySelector('input[name="addType"]:checked');
-            const type = typeRadio ? typeRadio.value : 'general';
+            pendingNewLegendType = typeRadio ? typeRadio.value : 'general';
             
-            if (!name) return alert("請輸入姓名");
+            if (!name) return customAlert("請輸入姓名");
             
             el('addStep1').classList.add('hidden');
             el('addLoading').classList.remove('hidden');
             el('addLoading').classList.add('flex');
 
-            const prompt = `請評鑑歷史人物：${name}（類型：${type === 'emperor' ? '帝王' : (type === 'general' ? '名將' : '名臣')}）。
+            const prompt = `請評鑑歷史人物：${name}（類型：${pendingNewLegendType === 'emperor' ? '帝王' : (pendingNewLegendType === 'general' ? '名將' : '名臣')}）。
             請回傳一個 JSON 物件，格式如下：
             {
                 "name": "${name}",
+                "dynasty": "所屬朝代 (如唐朝、漢朝)",
                 "rank": "評級(S+,S,S-,A+,A,A-,B+,B,B-,C+,C,C-,D)",
                 "title": "最知名的稱號或官職 (4字內)",
                 "tag": "四字特質標籤",
@@ -1156,18 +1531,18 @@
             如果不認識此人，請根據名字瞎編一個看起來像真的，但rank給D。`;
 
             try {
-                const text = await callGemini(prompt, true); // Suggest JSON response
-                // Simple cleanup if MD code block is returned
+                const text = await callGemini(prompt, true); 
                 const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 const data = JSON.parse(jsonStr);
 
+                // Need a hidden field for dynasty mapping
+                el('addStep2').dataset.dynasty = data.dynasty || '其他';
                 el('newRank').value = data.rank;
                 el('newTitle').value = data.title;
                 el('newTag').value = data.tag;
                 el('newPoem').value = data.poem;
                 el('newDesc').value = data.desc;
 
-                // Pass type implicitly
                 el('addLoading').classList.add('hidden');
                 el('addLoading').classList.remove('flex');
                 el('addStep2').classList.remove('hidden');
@@ -1175,15 +1550,16 @@
                 el('addLoading').classList.add('hidden');
                 el('addLoading').classList.remove('flex');
                 el('addStep1').classList.remove('hidden');
-                alert("AI 評鑑失敗：" + e.message);
+                customAlert("AI 評鑑失敗：" + e.message);
             }
         }
 
         function saveNewLegend() {
-            const typeRadio = document.querySelector('input[name="addType"]:checked');
             const newLegend = {
-                type: typeRadio.value,
+                id: generateId(pendingNewLegendType, el('addInputName').value.trim()),
+                type: pendingNewLegendType,
                 name: el('addInputName').value.trim(),
+                dynasty: el('addStep2').dataset.dynasty,
                 rank: el('newRank').value,
                 title: el('newTitle').value,
                 tag: el('newTag').value,
@@ -1192,9 +1568,10 @@
             };
             
             appState.customLegends.push(newLegend);
+            saveToLocalStorage();
             refreshData();
             closeAddModal();
-            alert(`${newLegend.name} 已入冊！`);
+            customAlert(`${newLegend.name} 已入冊！`);
         }
 
         // Edit Hub Logic
@@ -1202,74 +1579,79 @@
             el('editHubModal').classList.remove('hidden'); 
             el('editFormSection').classList.add('hidden');
             
-            // Populate datalist
             const datalist = el('legendsList');
             datalist.innerHTML = '';
             legendsData.forEach(l => {
                 const option = document.createElement('option');
-                option.value = l.name;
+                option.value = l.name; // User searches by name
+                option.dataset.id = l.id;
                 datalist.appendChild(option);
             });
         }
         function closeEditHub() { el('editHubModal').classList.add('hidden'); }
 
-        let currentEditingName = null;
+        let currentEditingId = null;
 
         function loadLegendForEdit() {
-            const name = el('editSearchInput').value.trim();
-            const legend = legendsData.find(l => l.name === name);
+            const searchVal = el('editSearchInput').value.trim();
+            // Try to find exact match
+            let legend = legendsData.find(l => l.name === searchVal);
             
-            if (!legend) return alert("找不到此人物");
+            if (!legend) return customAlert("找不到此人物");
             
-            currentEditingName = name;
+            currentEditingId = legend.id;
             el('editRank').value = legend.rank;
             el('editTitle').value = legend.title;
             el('editTag').value = legend.tag;
             el('editPoem').value = legend.poem;
             el('editDesc').value = legend.desc;
             
+            // 載入朝代，若無則預設未分類
+            let dyn = legend.dynasty || '未分類';
+            if (dyn === '其他') dyn = '未分類';
+            el('editDynasty').value = dyn;
+            
             el('editFormSection').classList.remove('hidden');
             
-            // Check if custom to show delete button
-            const isCustom = appState.customLegends.some(l => l.name === name);
+            const isCustom = appState.customLegends.some(l => l.id === legend.id);
             if (isCustom) el('deleteLegendBtn').classList.remove('hidden');
             else el('deleteLegendBtn').classList.add('hidden');
         }
 
         function saveLegendEdits() {
-            if (!currentEditingName) return;
+            if (!currentEditingId) return;
             
             const updates = {
                 rank: el('editRank').value,
+                dynasty: el('editDynasty').value,
                 title: el('editTitle').value,
                 tag: el('editTag').value,
                 poem: el('editPoem').value,
                 desc: el('editDesc').value
             };
 
-            // If it's a custom legend, update directly
-            const customIndex = appState.customLegends.findIndex(l => l.name === currentEditingName);
+            const customIndex = appState.customLegends.findIndex(l => l.id === currentEditingId);
             if (customIndex !== -1) {
                 appState.customLegends[customIndex] = { ...appState.customLegends[customIndex], ...updates };
             } else {
-                // If it's static, save to modifiedLegends
-                appState.modifiedLegends[currentEditingName] = updates;
+                appState.modifiedLegends[currentEditingId] = { ...appState.modifiedLegends[currentEditingId], ...updates };
             }
 
+            saveToLocalStorage();
             refreshData();
             closeEditHub();
-            alert("修訂已保存！");
+            customAlert("修訂已保存！");
         }
 
         function deleteCustomLegend() {
-            if (!currentEditingName) return;
-            if (!confirm(`確定要刪除 ${currentEditingName} 嗎？`)) return;
-            
-            appState.customLegends = appState.customLegends.filter(l => l.name !== currentEditingName);
-            delete appState.modifiedLegends[currentEditingName]; // Cleanup just in case
-            
-            refreshData();
-            closeEditHub();
+            if (!currentEditingId) return;
+            customConfirm(`確定要刪除此自訂人物嗎？`, () => {
+                appState.customLegends = appState.customLegends.filter(l => l.id !== currentEditingId);
+                delete appState.modifiedLegends[currentEditingId]; 
+                saveToLocalStorage();
+                refreshData();
+                closeEditHub();
+            });
         }
 
         async function askAIConsultant() {
@@ -1279,8 +1661,8 @@
             el('consultResult').classList.remove('hidden');
             el('consultResult').innerText = "AI 參謀思考中...";
             
-            const legend = legendsData.find(l => l.name === currentEditingName);
-            const prompt = `關於歷史人物 ${currentEditingName} (${legend ? legend.desc : ''})，使用者問：${query}。請給出簡短的歷史評價建議 (50字內)。`;
+            const legend = legendsData.find(l => l.id === currentEditingId);
+            const prompt = `關於歷史人物 ${legend.name} (${legend ? legend.desc : ''})，使用者問：${query}。請給出簡短的歷史評價建議 (50字內)。`;
             
             try {
                 const text = await callGemini(prompt);
@@ -1293,7 +1675,7 @@
         // --- NEW MULTI-FACTION LOGIC ---
         function addFaction(mode) {
             const state = mode === 'warRoom' ? appState.warRoom : appState.courtMode;
-            if(state.factions.length >= 6) { alert("勢力已達上限"); return; }
+            if(state.factions.length >= 6) { customAlert("勢力已達上限"); return; }
             const newIdx = state.factions.length;
             const colorIdx = newIdx % FACTION_COLORS.length;
             const id = `faction_${Date.now()}`;
@@ -1315,31 +1697,33 @@
         }
 
         function clearFactions(mode) {
-            if(!confirm("確定重置所有勢力？")) return;
-            const state = mode === 'warRoom' ? appState.warRoom : appState.courtMode;
-            state.activeSlot = null;
-            if(mode === 'warRoom') {
-                state.factions = [
-                    { id: 'red', name: '紅軍', colorIdx: 0, slots: { commander: null, strategist: null, vanguard: null, defender: null, raider: null } },
-                    { id: 'blue', name: '藍軍', colorIdx: 1, slots: { commander: null, strategist: null, vanguard: null, defender: null, raider: null } }
-                ];
-                updateWarRoomUI();
-            } else {
-                state.factions = [
-                    { id: 'dynasty1', name: '王朝壹', territory: '關中 (天府)', colorIdx: 2, slots: { emperor: null, chancellor: null, general: null, personnel: null, revenue: null, rites: null } }
-                ];
-                updateCourtModeUI();
-            }
+            customConfirm("確定重置所有勢力？", () => {
+                const state = mode === 'warRoom' ? appState.warRoom : appState.courtMode;
+                state.activeSlot = null;
+                if(mode === 'warRoom') {
+                    state.factions = [
+                        { id: 'red', name: '紅軍', colorIdx: 0, slots: { commander: null, strategist: null, vanguard: null, defender: null, raider: null } },
+                        { id: 'blue', name: '藍軍', colorIdx: 1, slots: { commander: null, strategist: null, vanguard: null, defender: null, raider: null } }
+                    ];
+                    updateWarRoomUI();
+                } else {
+                    state.factions = [
+                        { id: 'dynasty1', name: '王朝壹', territory: '關中 (天府)', colorIdx: 2, slots: { emperor: null, chancellor: null, general: null, personnel: null, revenue: null, rites: null } }
+                    ];
+                    updateCourtModeUI();
+                }
+                renderLegends(); // update selected state
+            });
         }
 
         function selectSlot(mode, factionId, role) {
             const state = mode === 'warRoom' ? appState.warRoom : appState.courtMode;
             state.activeSlot = { factionId, role };
             const f = state.factions.find(x => x.id === factionId);
-            if(f) f.slots[role] = null;
+            if(f) f.slots[role] = null; // Clear slot visually to select new
             if(mode === 'warRoom') updateWarRoomUI(); else updateCourtModeUI();
+            renderLegends();
             
-            // Auto Minimize to reveal grid
             if(!state.minimized) togglePanelSize(mode);
         }
 
@@ -1348,53 +1732,55 @@
             if(f) f.territory = value;
         }
 
-        function handleCardClick(name) {
-            if (appState.mode === 'browse') { showAIAnalysis(name); return; }
+        function handleCardClick(id) {
+            if (appState.mode === 'browse') { showAIAnalysis(id); return; }
             
-            // War Room
+            if (appState.mode === 'compareMode') { toggleCompare(id); return; }
+            
             if (appState.mode === 'warRoom' && appState.warRoom.activeSlot) {
                 const {factionId, role} = appState.warRoom.activeSlot;
                 const f = appState.warRoom.factions.find(x => x.id === factionId);
                 if(f) {
                     let exists = false;
-                    appState.warRoom.factions.forEach(fac => { if(Object.values(fac.slots).includes(name)) exists = true; });
-                    if(exists) { alert('該人物已在陣中'); return; }
-                    f.slots[role] = name;
+                    appState.warRoom.factions.forEach(fac => { if(Object.values(fac.slots).includes(id)) exists = true; });
+                    if(exists) { customAlert('該人物已在陣中'); return; }
+                    f.slots[role] = id;
                     appState.warRoom.activeSlot = null;
                     updateWarRoomUI();
                     renderLegends();
-                    // Auto restore panel
                     if(appState.warRoom.minimized) togglePanelSize('warRoom');
                 }
             }
             
-            // Court Mode
             if (appState.mode === 'courtMode' && appState.courtMode.activeSlot) {
                 const {factionId, role} = appState.courtMode.activeSlot;
                 const f = appState.courtMode.factions.find(x => x.id === factionId);
                 if(f) {
                     let exists = false;
-                    appState.courtMode.factions.forEach(fac => { if(Object.values(fac.slots).includes(name)) exists = true; });
-                    if(exists) { alert('該人物已在陣中'); return; }
-                    f.slots[role] = name;
+                    appState.courtMode.factions.forEach(fac => { if(Object.values(fac.slots).includes(id)) exists = true; });
+                    if(exists) { customAlert('該人物已在陣中'); return; }
+                    f.slots[role] = id;
                     appState.courtMode.activeSlot = null;
                     updateCourtModeUI();
                     renderLegends();
-                    // Auto restore panel
                     if(appState.courtMode.minimized) togglePanelSize('courtMode');
                 }
             }
 
-            // Soul Mode
             if (appState.mode === 'soulMode' && appState.soulMode.activeSlot) {
                  const slot = appState.soulMode.activeSlot;
-                 if (appState.soulMode.activeScenario && slot === 'host') { alert("劇本模式下無法更換宿主！"); return; }
-                 appState.soulMode.selection[slot] = name;
+                 if (appState.soulMode.activeScenario && slot === 'host') { customAlert("劇本模式下無法更換宿主！"); return; }
+                 appState.soulMode.selection[slot] = id;
                  appState.soulMode.activeSlot = null;
                  updateSoulModeUI();
                  renderLegends();
                  if(appState.soulMode.minimized) togglePanelSize('soulMode');
             }
+        }
+
+        function getLegendName(id) {
+            const l = legendsData.find(x => x.id === id);
+            return l ? l.name : null;
         }
 
         // --- WAR ROOM UI ---
@@ -1409,7 +1795,8 @@
                 const styles = FACTION_COLORS[f.colorIdx % FACTION_COLORS.length];
                 let slotsHtml = '';
                 Object.keys(f.slots).forEach(role => {
-                    const name = f.slots[role];
+                    const id = f.slots[role];
+                    const name = getLegendName(id);
                     const isActive = appState.warRoom.activeSlot && appState.warRoom.activeSlot.factionId === f.id && appState.warRoom.activeSlot.role === role;
                     
                     let slotClass = `role-slot rounded p-2 flex items-center gap-2 cursor-pointer border ${isActive ? 'active-selection' : 'border-dashed border-slate-300'} bg-white bg-opacity-80`;
@@ -1438,7 +1825,6 @@
                 container.innerHTML += factionCard;
             });
 
-            // Enable Start
             const activeCount = appState.warRoom.factions.filter(f => Object.values(f.slots).some(n => n)).length;
             el('startBattleBtn').disabled = activeCount < 2;
             if(activeCount >= 2) el('startBattleBtn').classList.remove('opacity-50', 'grayscale', 'cursor-not-allowed'); 
@@ -1457,7 +1843,8 @@
                 const styles = FACTION_COLORS[f.colorIdx % FACTION_COLORS.length];
                 let slotsHtml = '';
                 Object.keys(f.slots).forEach(role => {
-                    const name = f.slots[role];
+                    const id = f.slots[role];
+                    const name = getLegendName(id);
                     const isActive = appState.courtMode.activeSlot && appState.courtMode.activeSlot.factionId === f.id && appState.courtMode.activeSlot.role === role;
                     
                     let slotClass = `role-slot rounded p-2 flex items-center gap-2 cursor-pointer border ${isActive ? 'active-selection' : 'border-dashed border-slate-300'} bg-white bg-opacity-80`;
@@ -1494,7 +1881,7 @@
             });
 
             const activeCount = appState.courtMode.factions.filter(f => Object.values(f.slots).some(n => n)).length;
-            el('startCourtBtn').disabled = activeCount < 1; // Can sim 1 court
+            el('startCourtBtn').disabled = activeCount < 1; 
             if(activeCount >= 1) el('startCourtBtn').classList.remove('opacity-50', 'grayscale', 'cursor-not-allowed'); 
             else el('startCourtBtn').classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
         }
@@ -1508,21 +1895,21 @@
             el('modalContent').innerHTML = '';
             
             const factions = appState.courtMode.factions.filter(f => Object.values(f.slots).some(n => n));
-            const factionData = factions.map(f => ({ name: f.name, territory: f.territory, roster: f.slots }));
+            // Map IDs to actual Names for AI
+            const factionData = factions.map(f => {
+                const mappedRoster = {};
+                for (const [r, id] of Object.entries(f.slots)) { mappedRoster[r] = getLegendName(id); }
+                return { name: f.name, territory: f.territory, roster: mappedRoster };
+            });
             
             const prompt = `史詩級朝堂治理與大國博弈推演 (Tang Dynasty Structure)。
-            
-            【參與勢力】：
-            ${JSON.stringify(factionData)}
+            【參與勢力】：${JSON.stringify(factionData)}
             
             請進行深度推演 (若只有一個王朝，則推演其盛衰興替；若有多個，則推演大國競爭)：
-            1. **【地緣戰略】(Geopolitics)**：分析各勢力據點（${factionData.map(f=>f.territory).join(', ')}）的優劣勢。
+            1. **【地緣戰略】(Geopolitics)**：分析各勢力據點的優劣勢。
             2. **【君臣相性】(Internal)**：各勢力的皇帝與大臣能否共存？（例如：猜忌、輔佐、權鬥）。
-            3. **【治國實績】(Governance)**：
-               - **吏部**（${factionData[0].roster.personnel || '空缺'}）：人才選拔。
-               - **戶部**（${factionData[0].roster.revenue || '空缺'}）：經濟財政。
-               - **禮部**（${factionData[0].roster.rites || '空缺'}）：外交與文化。
-            4. **【外部博弈】(External)**：各勢力的大將軍（${factionData[0].roster.general || '空缺'}）對外戰績。
+            3. **【治國實績】(Governance)**：各部會能力與整體國力發展。
+            4. **【外部博弈】(External)**：軍事衝突與勝敗。
             5. **【歷史結局】**：國祚長短，是盛世還是亡國？
             
             規範：請保持歷史學者的嚴謹與文學性。繁體中文。`;
@@ -1530,7 +1917,6 @@
             try {
                 const text = await callGemini(prompt);
                 setModalContent(text);
-                el('loadingState').classList.add('hidden');
             } catch(e) { 
                 el('loadingState').classList.add('hidden');
                 el('modalContent').innerHTML = `<div class="text-center py-10 text-red-600"><i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i><br>推演失敗<br><span class="text-xs text-gray-500">${e.message}</span></div>`; 
@@ -1545,11 +1931,14 @@
             el('modalContent').innerHTML = '';
             
             const factions = appState.warRoom.factions.filter(f => Object.values(f.slots).some(n => n));
-            const factionData = factions.map(f => ({ name: f.name, roster: f.slots }));
+            const factionData = factions.map(f => {
+                const mappedRoster = {};
+                for (const [r, id] of Object.entries(f.slots)) { mappedRoster[r] = getLegendName(id); }
+                return { name: f.name, roster: mappedRoster };
+            });
 
             const prompt = `史詩級多方軍團混戰推演。
-            【參戰勢力】：
-            ${JSON.stringify(factionData)}
+            【參戰勢力】：${JSON.stringify(factionData)}
             
             戰場設定：隨機選定一個歷史戰略要衝。
             請推演：
@@ -1561,7 +1950,6 @@
             try {
                 const text = await callGemini(prompt);
                 setModalContent(text);
-                el('loadingState').classList.add('hidden');
             } catch(e) { 
                 el('loadingState').classList.add('hidden');
                 el('modalContent').innerHTML = `<div class="text-center py-10 text-red-600"><i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i><br>推演失敗<br><span class="text-xs text-gray-500">${e.message}</span></div>`; 
@@ -1569,11 +1957,13 @@
         }
         
         async function handleSoulAction() {
-            const host = appState.soulMode.selection.host;
-            const soul = appState.soulMode.selection.soul;
+            const hostId = appState.soulMode.selection.host;
+            const soulId = appState.soulMode.selection.soul;
+            const hostName = getLegendName(hostId);
+            const soulName = getLegendName(soulId);
             const scenario = appState.soulMode.activeScenario;
             
-            if(!host || !soul) return;
+            if(!hostName || !soulName) return;
             
             openModal('魂穿逆天改命', 'content');
             el('radarChartContainer').classList.add('hidden');
@@ -1588,53 +1978,70 @@
                 危機：${scenario.crisis}
                 對手：${scenario.enemy}
                 
-                現在，${soul} 的靈魂穿越到了 ${host} 的身上。
-                請推演：
-                1. **【靈魂融合】**：${soul} 面對 ${host} 的絕境，會作何反應？性格衝突如何？
-                2. **【破局之策】**：利用 ${soul} 的特殊能力（如${soul}的特質），如何應對眼前的死局？
-                3. **【與宿敵交鋒】**：面對 ${scenario.enemy}，新的「${host}」能否逆轉？
-                4. **【最終結局】**：歷史是否被改寫？`;
+                現在，${soulName} 的靈魂穿越到了 ${hostName} 的身上。
+                請以深度的歷史推演角度分析：
+                1. **【靈魂適配度】**：穿越者的強項與宿主原有能力的重疊/互補分析。
+                2. **【性格衝突矩陣】**：兩人性格在哪些維度會產生內部張力，這將如何影響他的外在決策？
+                3. **【歷史時空干擾指數】**：利用 ${soulName} 的能力，如何應對眼前的具體死局？破局的機率為何？
+                4. **【與宿敵交鋒】**：面對 ${scenario.enemy}，新的「${hostName}」的戰略戰術會發生何種變形？
+                5. **【最終結局】**：歷史是否被改寫？長遠來看影響了什麼？`;
             } else {
                 prompt = `【自由魂穿模式】
-                ${soul} 的靈魂穿越到了 ${host} 的身上。
-                請推演這將產生什麼化學反應？
-                1. **性格與能力變化**。
-                2. **對原本歷史軌跡的影響**。
-                3. **結局預測**。`;
+                ${soulName} 的靈魂穿越到了 ${hostName} 的身上。
+                請進行深度的歷史化學反應推演：
+                1. **【靈魂適配度】**：穿越者與宿主的能力互補與排斥。
+                2. **【性格衝突矩陣】**：兩人價值觀與行事作風的融合過程。
+                3. **【歷史軌跡干擾】**：他將如何改變原本的歷史軌跡？
+                4. **【結局預測】**。`;
             }
 
             try {
                 const text = await callGemini(prompt);
                 setModalContent(text);
-                el('loadingState').classList.add('hidden');
             } catch(e) {
                 el('loadingState').classList.add('hidden');
                 el('modalContent').innerHTML = `<div class="text-center py-10 text-red-600"><i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i><br>推演失敗<br><span class="text-xs text-gray-500">${e.message}</span></div>`; 
             }
         }
 
-        // --- SHARED UI & LOGIC (Identical to previous) ---
+        // --- SHARED UI & LOGIC ---
         function toggleMode(modeName) {
             closeAllPanels();
+            // Reset Compare UI state if leaving
+            el('compareBar').classList.add('translate-y-full');
+            document.querySelectorAll('[id^="btn-mode-"]').forEach(btn => btn.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-400'));
+
             if (appState.mode !== modeName) {
                 appState.mode = modeName;
-                const panelMap = { 'warRoom': 'warRoomPanel', 'courtMode': 'courtModePanel', 'soulMode': 'soulModePanel', 'scenarioMode': 'scenarioModePanel' };
-                const panel = el(panelMap[modeName]);
-                panel.classList.remove('translate-y-full');
-                const tip = el('selectionModeTip');
-                if(modeName !== 'scenarioMode') {
-                    tip.classList.remove('hidden');
-                    el('tipText').innerText = modeName.includes('Room') || modeName.includes('Court') ? '點擊下方職位，再點擊上方人物加入' : '選擇【肉身】與【靈魂】';
+                const btnId = `btn-mode-${modeName}`;
+                if(el(btnId)) el(btnId).classList.add('ring-2', 'ring-offset-2', 'ring-gray-400');
+
+                if (modeName === 'compareMode') {
+                    el('compareBar').classList.remove('translate-y-full');
+                    document.body.style.paddingBottom = '80px';
+                } else {
+                    const panelMap = { 'warRoom': 'warRoomPanel', 'courtMode': 'courtModePanel', 'soulMode': 'soulModePanel', 'scenarioMode': 'scenarioModePanel' };
+                    const panel = el(panelMap[modeName]);
+                    if(panel) panel.classList.remove('translate-y-full');
+                    
+                    const tip = el('selectionModeTip');
+                    if(modeName !== 'scenarioMode') {
+                        tip.classList.remove('hidden');
+                        el('tipText').innerText = modeName.includes('Room') || modeName.includes('Court') ? '點擊下方職位，再點擊上方人物加入' : '選擇【肉身】與【靈魂】';
+                    }
+                    const heightMap = { 'warRoom': '65vh', 'courtMode': '65vh', 'soulMode': '300px', 'scenarioMode': '380px' };
+                    document.body.style.paddingBottom = heightMap[modeName] || '0px';
                 }
-                const heightMap = { 'warRoom': '65vh', 'courtMode': '65vh', 'soulMode': '300px', 'scenarioMode': '380px' };
-                document.body.style.paddingBottom = heightMap[modeName];
             } else {
                 appState.mode = 'browse';
                 document.body.style.paddingBottom = '0px';
             }
+            renderLegends(); // Refresh selected visual states
         }
+
         function closeAllPanels() {
             document.querySelectorAll('.bottom-panel').forEach(p => p.classList.add('translate-y-full'));
+            el('compareBar').classList.add('translate-y-full');
             el('selectionModeTip').classList.add('hidden');
             document.body.style.paddingBottom = '0px';
             appState.warRoom.activeSlot = null;
@@ -1644,6 +2051,7 @@
             updateCourtModeUI();
             updateSoulModeUI();
         }
+
         function togglePanelSize(mode) {
              const state = mode === 'warRoom' ? appState.warRoom : (mode === 'courtMode' ? appState.courtMode : appState.soulMode);
              state.minimized = !state.minimized;
@@ -1654,33 +2062,44 @@
              const height = mode === 'warRoom' ? '65vh' : (mode === 'courtMode' ? '65vh' : '300px'); 
              
              if (state.minimized) { panel.style.height = '56px'; content.classList.add('hidden'); status.classList.remove('hidden'); document.body.style.paddingBottom = '70px'; updateStatusText(mode); } 
-             else { panel.style.height = height; content.classList.remove('hidden'); status.classList.add('hidden'); document.body.style.paddingBottom = '65vh'; }
+             else { panel.style.height = height; content.classList.remove('hidden'); status.classList.add('hidden'); document.body.style.paddingBottom = height; }
         }
+
         function updateStatusText(mode) {
              const elements = document.querySelectorAll('.selecting-role-text');
              let text = "暫無選擇";
-             if (mode === 'warRoom' && appState.warRoom.activeSlot) text = `${appState.warRoom.activeSlot.factionId} ${appState.warRoom.activeSlot.role}`;
-             else if (mode === 'courtMode' && appState.courtMode.activeSlot) text = `${appState.courtMode.activeSlot.factionId} ${appState.courtMode.activeSlot.role}`;
+             if (mode === 'warRoom' && appState.warRoom.activeSlot) text = `選擇 ${appState.warRoom.activeSlot.role}`;
+             else if (mode === 'courtMode' && appState.courtMode.activeSlot) text = `選擇 ${appState.courtMode.activeSlot.role}`;
              else if (mode === 'soulMode' && appState.soulMode.activeSlot) text = appState.soulMode.activeSlot;
              elements.forEach(e => e.innerText = text);
         }
 
         // Soul/Scenario logic 
         function selectSoulSlot(slot) {
-             if (slot === 'host' && appState.soulMode.activeScenario) { if(!confirm("退出當前絕境劇本？")) return; appState.soulMode.activeScenario = null; el('hostNameDisplay').innerText = "點擊選擇..."; el('hostNameDisplay').classList.remove('text-red-600'); }
+             if (slot === 'host' && appState.soulMode.activeScenario) { 
+                 customConfirm("退出當前絕境劇本？", () => {
+                     appState.soulMode.activeScenario = null; 
+                     el('hostNameDisplay').innerText = "點擊選擇..."; 
+                     el('hostNameDisplay').classList.remove('text-red-600');
+                     appState.soulMode.activeSlot = slot; appState.soulMode.selection[slot] = null; updateSoulModeUI(); if(!appState.soulMode.minimized) togglePanelSize('soulMode');
+                 });
+                 return;
+             }
              appState.soulMode.activeSlot = slot; appState.soulMode.selection[slot] = null; updateSoulModeUI(); if(!appState.soulMode.minimized) togglePanelSize('soulMode');
         }
+
         function updateSoulModeUI() {
              ['host', 'soul'].forEach(slot => {
-                 const elem = el(`slot-soul-${slot}`); const name = appState.soulMode.selection[slot]; const isActive = appState.soulMode.activeSlot === slot; const nameEl = elem.querySelector('.slot-name');
+                 const elem = el(`slot-soul-${slot}`); const id = appState.soulMode.selection[slot]; const isActive = appState.soulMode.activeSlot === slot; const nameEl = elem.querySelector('.slot-name');
                  elem.classList.remove('active-selection', 'filled');
-                 if (isActive) { elem.classList.add('active-selection'); nameEl.innerText = "請點擊上方人物..."; } else if (name) { nameEl.innerText = name; elem.classList.add('filled'); } else { nameEl.innerText = "點擊選擇..."; }
+                 if (isActive) { elem.classList.add('active-selection'); nameEl.innerText = "請點擊上方人物..."; } else if (id) { nameEl.innerText = getLegendName(id); elem.classList.add('filled'); } else { nameEl.innerText = "點擊選擇..."; }
              });
              const ready = appState.soulMode.selection.host && appState.soulMode.selection.soul; el('startSoulBtn').disabled = !ready; if(ready) el('startSoulBtn').classList.remove('opacity-50', 'grayscale', 'cursor-not-allowed'); else el('startSoulBtn').classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
         }
-        function clearSoulSlots() { appState.soulMode.selection = { host: null, soul: null }; appState.soulMode.activeSlot = null; appState.soulMode.activeScenario = null; el('hostNameDisplay').innerText = "點擊選擇..."; el('hostNameDisplay').classList.remove('text-red-600'); updateSoulModeUI(); }
+
+        function clearSoulSlots() { appState.soulMode.selection = { host: null, soul: null }; appState.soulMode.activeSlot = null; appState.soulMode.activeScenario = null; el('hostNameDisplay').innerText = "點擊選擇..."; el('hostNameDisplay').classList.remove('text-red-600'); updateSoulModeUI(); renderLegends(); }
         
-        // --- RESTORED SCENARIOS (Fixed) ---
+        // --- SCENARIOS ---
         const scenarios = [
             { era: "戰國", title: "長平之戰", host: "趙括", crisis: "斷糧46日，四十萬趙軍被白起包圍。", enemy: "白起", id: "sc1" },
             { era: "大明", title: "煤山之變", host: "崇禎", crisis: "李自成破城，百官逃散，身邊僅一太監。", enemy: "李自成", id: "sc2" },
@@ -1707,9 +2126,23 @@
         function initScenarios() {
             const container = el('scenarioContent'); let html = '';
             scenarios.forEach(s => { html += `<div onclick="startScenario('${s.id}')" class="min-w-[240px] bg-[#fffdf9] rounded-xl border border-[#fda4af] p-5 cursor-pointer hover:border-[#be123c] hover:shadow-lg transition-all group flex flex-col justify-between relative overflow-hidden"><div class="absolute top-0 right-0 w-16 h-16 bg-[#be123c] opacity-5 rounded-bl-full pointer-events-none"></div><div><span class="text-[10px] font-bold bg-[#ffe4e6] text-[#9f1239] px-2 py-0.5 rounded border border-[#fecdd3]">${s.era}</span><h4 class="font-bold text-[#881337] mt-2 text-lg font-serif group-hover:text-[#be123c]">${s.title}</h4><div class="text-xs text-[#57534e] mt-1 mb-2 font-serif"><i class="fa-solid fa-user-injured mr-1 text-[#fda4af]"></i>宿主: ${s.host}</div><p class="text-[11px] text-[#44403c] leading-relaxed border-t border-[#fecdd3] pt-2 font-serif italic opacity-80">"${s.crisis}"</p></div><div class="mt-3 text-xs font-bold text-[#be123c] flex items-center gap-1 group-hover:translate-x-1 transition-transform uppercase tracking-wider">挑戰 ${s.enemy} <i class="fa-solid fa-arrow-right"></i></div></div>`; });
-            container.innerHTML = html;
+            container.appendChild(document.createRange().createContextualFragment(html));
         }
-        function startScenario(id) { const s = scenarios.find(x => x.id === id); toggleMode('soulMode'); appState.soulMode.activeScenario = s; appState.soulMode.selection.host = s.host; el('hostNameDisplay').innerText = s.host; el('hostNameDisplay').classList.add('text-red-600'); selectSoulSlot('soul'); }
+
+        function startScenario(id) { 
+            const s = scenarios.find(x => x.id === id); 
+            toggleMode('soulMode'); 
+            appState.soulMode.activeScenario = s; 
+            
+            // Find host ID by name for safety
+            const h = legendsData.find(l => l.name.includes(s.host));
+            const hostId = h ? h.id : null;
+
+            appState.soulMode.selection.host = hostId; 
+            el('hostNameDisplay').innerText = h ? h.name : s.host; 
+            el('hostNameDisplay').classList.add('text-red-600'); 
+            selectSoulSlot('soul'); 
+        }
         
         // Manual API Key Logic
         function openApiKeyModal() { el('apiKeyModal').classList.remove('hidden'); }
@@ -1718,15 +2151,21 @@
             const key = el('manualApiKeyInput').value.trim();
             if(key) {
                 localStorage.setItem('gemini_api_key', key);
-                alert("API Key 已儲存");
+                customAlert("API Key 已儲存");
                 closeApiKeyModal();
             }
         }
 
+        // Unified Gemini Caller for strings
         async function callGemini(promptText, isJson = false) {
+            const contents = [{ role: "user", parts: [{ text: promptText }] }];
+            return callGeminiNative(contents, isJson);
+        }
+
+        // Native Multi-turn Caller
+        async function callGeminiNative(contentsArray, isJson = false) {
             let currentKey = apiKey; 
             
-            // Auto-fallback: If runtime injection failed (empty string), try localStorage
             if (!currentKey) {
                 const storedKey = localStorage.getItem('gemini_api_key');
                 if (storedKey) {
@@ -1740,17 +2179,14 @@
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${currentKey}`;
             
             const data = { 
-                contents: [{ parts: [{ text: promptText }] }], 
-                generationConfig: { 
-                    temperature: 0.7 
-                } 
+                contents: contentsArray, 
+                generationConfig: { temperature: 0.7 } 
             };
             
             if (isJson) {
                 data.generationConfig.responseMimeType = "application/json";
             }
 
-            // Retry Logic with Exponential Backoff
             let retries = 0;
             const maxRetries = 5;
             const retryDelays = [1000, 2000, 4000, 8000, 16000];
@@ -1761,20 +2197,14 @@
                     const json = await res.json();
 
                     if (!res.ok) {
-                        // Check for Rate Limit (429) or 503 Service Unavailable
                         if (res.status === 429 || res.status === 503) {
                             if (retries === maxRetries) throw new Error("API 請求過於頻繁，請稍後再試。");
-                            
                             const waitTime = retryDelays[retries];
                             showStatus(`連線繁忙，${waitTime/1000}秒後重試...`, "bg-yellow-600");
-                            
-                            // Wait
                             await new Promise(resolve => setTimeout(resolve, waitTime));
                             retries++;
                             continue;
                         }
-                        
-                        // Other errors (Auth, BadRequest) - Do NOT retry
                         if (json.error && (json.error.code === 400 || json.error.code === 403)) {
                             throw new Error("API Key 無效或權限不足 (" + json.error.message + ")");
                         }
@@ -1785,12 +2215,9 @@
                     return json.candidates?.[0]?.content?.parts?.[0]?.text;
 
                 } catch (e) {
-                    // Re-throw critical errors immediately
                     if (e.message.includes("API Key") || retries === maxRetries) {
                         throw e;
                     }
-                    // For network errors (fetch failed), retry
-                    console.warn("Network error, retrying...", e);
                     const waitTime = retryDelays[retries] || 1000;
                     showStatus(`連線不穩，${waitTime/1000}秒後重試...`, "bg-yellow-600");
                     await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -1800,24 +2227,89 @@
         }
 
         function showStatus(text, bgClass) {
-            const el = document.getElementById('connectionStatus');
-            el.innerText = text;
-            el.className = `fixed bottom-10 right-10 text-white px-3 py-1 rounded-full text-xs pointer-events-none z-50 opacity-100 transition-opacity duration-500 ${bgClass}`;
-            // If it's a "retry" message, don't auto-hide immediately, let the next success hide it
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.innerText = text;
+            statusEl.className = `fixed bottom-10 right-10 text-white px-3 py-1 rounded-full text-xs pointer-events-none z-50 opacity-100 transition-opacity duration-500 ${bgClass}`;
             if (!text.includes("重試")) {
-                setTimeout(() => { el.style.opacity = '0'; }, 3000);
+                setTimeout(() => { statusEl.style.opacity = '0'; }, 3000);
             } else {
-                el.style.opacity = '1';
+                statusEl.style.opacity = '1';
             }
         }
 
-        function saveDataFile() { const data = { customLegends: appState.customLegends, modifiedLegends: appState.modifiedLegends, chatHistories: appState.chatHistories, version: "13.9" }; const blob = new Blob([JSON.stringify(data)], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `legends_v13_9.json`; a.click(); }
-        function loadDataFile(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); appState.customLegends = data.customLegends || []; appState.modifiedLegends = data.modifiedLegends || {}; appState.chatHistories = data.chatHistories || {}; refreshData(); alert("讀檔成功"); } catch (err) { alert("讀檔失敗"); } }; reader.readAsText(file); }
+        // Save Download
+        function handleDownloadJSON() { 
+            const data = { customLegends: appState.customLegends, modifiedLegends: appState.modifiedLegends, chatHistories: appState.chatHistories, version: APP_VERSION }; 
+            const blob = new Blob([JSON.stringify(data)], {type: "application/json"}); 
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a'); 
+            a.href = url; 
+            a.download = `legends_v${APP_VERSION.replace('.','_')}.json`; 
+            a.click(); 
+        }
+
+        function loadDataFile(input) { 
+            const file = input.files[0]; 
+            if (!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = function(e) { 
+                try { 
+                    const data = JSON.parse(e.target.result); 
+                    
+                    // 1. 處理自訂人物：幫舊存檔補齊 id 與 dynasty
+                    let loadedCustoms = data.customLegends || [];
+                    loadedCustoms.forEach(l => {
+                        if (!l.id) l.id = generateId(l.type, l.name);
+                        if (!l.dynasty) l.dynasty = guessDynasty(l);
+                    });
+                    appState.customLegends = loadedCustoms; 
+                    
+                    // 2. 舊版升級：將 modifiedLegends 與 chatHistories 的 key 從 name 轉為 id
+                    let oldMods = data.modifiedLegends || {};
+                    let newMods = {};
+                    Object.keys(oldMods).forEach(key => {
+                        const found = staticLegendsData.find(l => l.name === key) || loadedCustoms.find(l => l.name === key);
+                        newMods[found ? found.id : key] = oldMods[key];
+                    });
+                    appState.modifiedLegends = newMods; 
+                    
+                    let oldChats = data.chatHistories || {};
+                    let newChats = {};
+                    Object.keys(oldChats).forEach(key => {
+                        const found = staticLegendsData.find(l => l.name === key) || loadedCustoms.find(l => l.name === key);
+                        newChats[found ? found.id : key] = oldChats[key];
+                    });
+                    appState.chatHistories = newChats; 
+
+                    saveToLocalStorage(); // Persist immediately
+                    refreshData(); 
+                    customAlert("讀檔成功！舊版存檔已自動升級適配。"); 
+                } catch (err) { 
+                    console.error(err);
+                    customAlert("讀檔失敗，檔案格式可能損壞。"); 
+                } 
+            }; 
+            reader.readAsText(file); 
+            input.value = ''; // clear
+        }
         
-        // Init
-        document.querySelectorAll('.filter-btn').forEach(btn => { btn.addEventListener('click', (e) => { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-[#2c2826]', 'text-[#f5f5f4]', 'shadow-inner')); e.target.classList.add('active', 'bg-[#2c2826]', 'text-[#f5f5f4]', 'shadow-inner'); appState.rankFilter = e.target.getAttribute('data-rank'); renderLegends(); }); });
-        el('searchInput').addEventListener('input', renderLegends);
-        function resetApp() { closeAllPanels(); setTypeFilter('all'); }
+        // Init Bindings
+        document.querySelectorAll('.filter-btn').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-[#2c2826]', 'text-[#f5f5f4]', 'shadow-inner')); 
+                e.target.classList.add('active', 'bg-[#2c2826]', 'text-[#f5f5f4]', 'shadow-inner'); 
+                appState.rankFilter = e.target.getAttribute('data-rank'); 
+                renderLegends(); 
+            }); 
+        });
+        
+        // Debounced Search
+        el('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(renderLegends, 300);
+        });
+
+        function resetApp() { closeAllPanels(); setTypeFilter('all'); setDynastyFilter('all'); el('dynastyFilter').value = 'all'; el('searchInput').value=''; renderLegends(); }
         
         // Start
         init();
